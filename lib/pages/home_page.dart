@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_snack_game/pages/blank_pixel.dart';
+import 'package:flutter_snack_game/pages/snack_pixel.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -8,6 +10,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  //grid dimeensions
+  int rowSize = 10;
+  int totalNumberOfSquares = 100;
+
+  // snack position
+
+  List<int> snackPosition = [0, 1];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,16 +31,17 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             flex: 3,
             child: GridView.builder(
-              itemCount: 100,
+              itemCount: totalNumberOfSquares,
               physics: NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 10,
+                crossAxisCount: rowSize,
               ),
               itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Container(color: Colors.lightGreenAccent),
-                );
+                if (snackPosition.contains(index)) {
+                  return SnackPixel();
+                } else {
+                  return BlankPixel();
+                }
               },
             ),
           ),
