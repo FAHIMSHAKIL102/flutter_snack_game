@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_snack_game/pages/blank_pixel.dart';
@@ -20,7 +21,7 @@ class _HomePageState extends State<HomePage> {
   int totalNumberOfSquares = 100;
 
   // snack position
-  List<int> snackPosition = [0, 1];
+  List<int> snackPosition = [0, 1, 2];
 
   // snack initially direction
   var currentDirection = SnackDirection.right;
@@ -30,11 +31,22 @@ class _HomePageState extends State<HomePage> {
 
   // game start
   void gameStart() {
-    Timer.periodic(Duration(milliseconds: 500), (timer) {
+    Timer.periodic(Duration(milliseconds: 400), (timer) {
       setState(() {
+        // moving snack
         moveSnack();
+
+        // eating snack
+        //eatFood();
       });
     });
+  }
+
+  void eatFood() {
+    // new food position
+    while (snackPosition.contains(foodPosition)) {
+      foodPosition = Random().nextInt(totalNumberOfSquares);
+    }
   }
 
   void moveSnack() {
@@ -42,31 +54,49 @@ class _HomePageState extends State<HomePage> {
       case SnackDirection.right:
         {
           // add head
-          snackPosition.add(snackPosition.last + 1);
-          // remove tail
-          snackPosition.removeAt(0);
+          if (snackPosition.last % rowSize == 9) {
+            snackPosition.add(snackPosition.last + 1 - rowSize);
+          } else {
+            snackPosition.add(snackPosition.last + 1);
+          }
         }
       case SnackDirection.left:
         {
           // add head
-          snackPosition.add(snackPosition.last - 1);
-          // remove tail
-          snackPosition.removeAt(0);
+          if (snackPosition.last % rowSize == 0) {
+            snackPosition.add(snackPosition.last - 1 + rowSize);
+          } else {
+            snackPosition.add(snackPosition.last - 1);
+          }
         }
       case SnackDirection.up:
         {
           // add head
-          snackPosition.add(snackPosition.last - rowSize);
-          // remove tail
-          snackPosition.removeAt(0);
+          if (snackPosition.last < rowSize) {
+            snackPosition.add(
+              snackPosition.last - rowSize + totalNumberOfSquares,
+            );
+          } else {
+            snackPosition.add(snackPosition.last - rowSize);
+          }
         }
       case SnackDirection.down:
         {
           // add head
-          snackPosition.add(snackPosition.last + rowSize);
-          // remove tail
-          snackPosition.removeAt(0);
+          if (snackPosition.last + rowSize > totalNumberOfSquares) {
+            snackPosition.add(
+              snackPosition.last + rowSize - totalNumberOfSquares,
+            );
+          } else {
+            snackPosition.add(snackPosition.last + rowSize);
+          }
         }
+    }
+    if (snackPosition.last == foodPosition) {
+      eatFood();
+    } else {
+      // remove tail
+      snackPosition.removeAt(0);
     }
   }
 
