@@ -20,6 +20,10 @@ class _HomePageState extends State<HomePage> {
   int rowSize = 10;
   int totalNumberOfSquares = 100;
 
+  bool gameHasStarted = false;
+  //user score
+  int currentScore = 0;
+
   // snack position
   List<int> snackPosition = [0, 1, 2];
 
@@ -27,22 +31,82 @@ class _HomePageState extends State<HomePage> {
   var currentDirection = SnackDirection.right;
 
   // food position
-  int foodPosition = 56;
+  int foodPosition = Random().nextInt(99);
 
   // game start
   void gameStart() {
+    gameHasStarted = true;
     Timer.periodic(Duration(milliseconds: 400), (timer) {
       setState(() {
         // moving snack
         moveSnack();
 
+        // game over
+        if (gameOver()) {
+          timer.cancel();
+          // user message
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) {
+              return AlertDialog(
+                title: Text('Game Over'),
+                content: SizedBox(
+                  height: 200,
+                  child: Column(
+                    children: [
+                      Text(
+                        'Your Score: $currentScore',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                      SizedBox(
+                        height: 80,
+                        width: double.infinity,
+                        child: TextFormField(
+                          decoration: InputDecoration(
+                            hintText: 'Enter Your Name',
+                            focusedBorder: OutlineInputBorder(),
+                            //enabledBorder: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      MaterialButton(
+                        color: Colors.pink,
+                        onPressed: () {
+                          submitScore();
+                          newGameStart();
+                          Navigator.pop(context);
+                        },
+                        child: Text('Ok'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        }
         // eating snack
         //eatFood();
       });
     });
   }
 
+  // add data to firebase
+  void submitScore() {}
+
+  // new game start
+  void newGameStart() {
+    setState(() {
+      snackPosition = [0, 1, 2];
+      currentDirection = SnackDirection.right;
+      //foodPosition = Random().nextInt(totalNumberOfSquares);
+      gameHasStarted = false;
+    });
+  }
+
   void eatFood() {
+    currentScore++;
     // new food position
     while (snackPosition.contains(foodPosition)) {
       foodPosition = Random().nextInt(totalNumberOfSquares);
@@ -83,7 +147,7 @@ class _HomePageState extends State<HomePage> {
       case SnackDirection.down:
         {
           // add head
-          if (snackPosition.last + rowSize > totalNumberOfSquares) {
+          if (snackPosition.last + rowSize >= totalNumberOfSquares) {
             snackPosition.add(
               snackPosition.last + rowSize - totalNumberOfSquares,
             );
@@ -100,6 +164,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // game over
+  bool gameOver() {
+    List<int> snackBody = snackPosition.sublist(0, snackPosition.length - 1);
+    if (snackBody.contains(snackPosition.last)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,7 +181,21 @@ class _HomePageState extends State<HomePage> {
       body: Column(
         children: [
           // high scores
-          Expanded(child: Container()),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: .end,
+              children: [
+                Text(
+                  'Highest Score: $currentScore',
+                  style: TextStyle(fontSize: 20, color: Colors.white),
+                ),
+                Text(
+                  'Score: $currentScore',
+                  style: TextStyle(fontSize: 30, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
 
           // game grid
           Expanded(
@@ -154,8 +242,8 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Center(
               child: MaterialButton(
-                onPressed: gameStart,
-                color: Colors.tealAccent,
+                onPressed: gameHasStarted ? () {} : gameStart,
+                color: gameHasStarted ? Colors.grey : Colors.tealAccent,
                 child: Text('Play'),
               ),
             ),
