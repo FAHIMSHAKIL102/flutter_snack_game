@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_snack_game/pages/blank_pixel.dart';
 import 'package:flutter_snack_game/pages/food_pixel.dart';
+import 'package:flutter_snack_game/pages/highest_scores_tile.dart';
 import 'package:flutter_snack_game/pages/snack_pixel.dart';
 
 class HomePage extends StatefulWidget {
@@ -19,6 +22,7 @@ class _HomePageState extends State<HomePage> {
   //grid dimeensions
   int rowSize = 10;
   int totalNumberOfSquares = 100;
+  final _nameController = TextEditingController();
 
   bool gameHasStarted = false;
   //user score
@@ -31,7 +35,30 @@ class _HomePageState extends State<HomePage> {
   var currentDirection = SnackDirection.right;
 
   // food position
-  int foodPosition = Random().nextInt(99);
+  int foodPosition = Random().nextInt(100);
+
+  // highest score list
+  List<String> highestScore_DocIds = [];
+  late final Future letGetDocIds = getDocId();
+
+  @override
+  void initState() {
+    getDocId();
+    super.initState();
+  }
+
+  Future getDocId() async {
+    await FirebaseFirestore.instance
+        .collection("highestscores")
+        .orderBy("score", descending: true)
+        .limit(5)
+        .get()
+        .then(
+          (onValue) => onValue.docs.forEach((action) {
+            highestScore_DocIds.add(action.reference.id);
+          }),
+        );
+  }
 
   // game start
   void gameStart() {
@@ -63,6 +90,7 @@ class _HomePageState extends State<HomePage> {
                         height: 80,
                         width: double.infinity,
                         child: TextFormField(
+                          controller: _nameController,
                           decoration: InputDecoration(
                             hintText: 'Enter Your Name',
                             focusedBorder: OutlineInputBorder(),
@@ -93,10 +121,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   // add data to firebase
-  void submitScore() {}
+  void submitScore() {
+    var database = FirebaseFirestore.instance;
+    database.collection('highestscores').add({
+      "name": _nameController.text,
+      "score": currentScore,
+    });
+  }
 
   // new game start
-  void newGameStart() {
+  Future newGameStart() async {
+    highestScore_DocIds = [];
+    await getDocId();
     setState(() {
       snackPosition = [0, 1, 2];
       currentDirection = SnackDirection.right;
@@ -176,79 +212,115 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Column(
-        children: [
-          // high scores
-          Expanded(
-            child: Column(
-              mainAxisAlignment: .end,
-              children: [
-                Text(
-                  'Highest Score: $currentScore',
-                  style: TextStyle(fontSize: 20, color: Colors.white),
+      body: RawKeyboardListener(
+        focusNode: FocusNode(),
+        autofocus: true,
+        onKey: (event) {
+          if (event.isKeyPressed(LogicalKeyboardKey.arrowDown) &&
+              currentDirection != SnackDirection.up) {
+            currentDirection = SnackDirection.down;
+          } else if (event.isKeyPressed(LogicalKeyboardKey.arrowUp) &&
+              currentDirection != SnackDirection.down) {
+            currentDirection = SnackDirection.up;
+          } else if (event.isKeyPressed(LogicalKeyboardKey.arrowRight) &&
+              currentDirection != SnackDirection.left) {
+            currentDirection = SnackDirection.right;
+          } else if (event.isKeyPressed(LogicalKeyboardKey.arrowLeft) &&
+              currentDirection != SnackDirection.right) {
+            currentDirection = SnackDirection.left;
+          }
+        },
+        child: SizedBox(
+          width: screenWidth > 426 ? 426 : screenWidth,
+          child: Column(
+            children: [
+              // high scores
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: .end,
+                  children: [
+                    Expanded(
+                      child: gameHasStarted
+                          ? SizedBox()
+                          : FutureBuilder(
+                              future: letGetDocIds,
+                              builder: (context, snapshot) {
+                                return ListView.builder(
+                                  itemBuilder: (context, index) {
+                                    return HighestScoresTile(
+                                      documentId: highestScore_DocIds[index],
+                                    );
+                                  },
+                                  itemCount: highestScore_DocIds.length,
+                                );
+                              },
+                            ),
+                    ),
+                    Text(
+                      'Score: $currentScore',
+                      style: TextStyle(fontSize: 30, color: Colors.white),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Score: $currentScore',
-                  style: TextStyle(fontSize: 30, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-
-          // game grid
-          Expanded(
-            flex: 3,
-            child: GestureDetector(
-              onVerticalDragUpdate: (details) {
-                if (details.delta.dy > 0 &&
-                    currentDirection != SnackDirection.up) {
-                  currentDirection = SnackDirection.down;
-                } else if (details.delta.dy < 0 &&
-                    currentDirection != SnackDirection.down) {
-                  currentDirection = SnackDirection.up;
-                }
-              },
-              onHorizontalDragUpdate: (details) {
-                if (details.delta.dx > 0 &&
-                    currentDirection != SnackDirection.left) {
-                  currentDirection = SnackDirection.right;
-                } else if (details.delta.dx < 0 &&
-                    currentDirection != SnackDirection.right) {
-                  currentDirection = SnackDirection.left;
-                }
-              },
-              child: GridView.builder(
-                itemCount: totalNumberOfSquares,
-                physics: NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: rowSize,
-                ),
-                itemBuilder: (context, index) {
-                  if (snackPosition.contains(index)) {
-                    return SnackPixel();
-                  } else if (foodPosition == index) {
-                    return FoodPixel();
-                  } else {
-                    return BlankPixel();
-                  }
-                },
               ),
-            ),
-          ),
 
-          // play button
-          Expanded(
-            child: Center(
-              child: MaterialButton(
-                onPressed: gameHasStarted ? () {} : gameStart,
-                color: gameHasStarted ? Colors.grey : Colors.tealAccent,
-                child: Text('Play'),
+              // game grid
+              Expanded(
+                flex: 3,
+                child: GestureDetector(
+                  onVerticalDragUpdate: (details) {
+                    if (details.delta.dy > 0 &&
+                        currentDirection != SnackDirection.up) {
+                      currentDirection = SnackDirection.down;
+                    } else if (details.delta.dy < 0 &&
+                        currentDirection != SnackDirection.down) {
+                      currentDirection = SnackDirection.up;
+                    }
+                  },
+                  onHorizontalDragUpdate: (details) {
+                    if (details.delta.dx > 0 &&
+                        currentDirection != SnackDirection.left) {
+                      currentDirection = SnackDirection.right;
+                    } else if (details.delta.dx < 0 &&
+                        currentDirection != SnackDirection.right) {
+                      currentDirection = SnackDirection.left;
+                    }
+                  },
+                  child: GridView.builder(
+                    itemCount: totalNumberOfSquares,
+                    physics: NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: rowSize,
+                    ),
+                    itemBuilder: (context, index) {
+                      if (snackPosition.contains(index)) {
+                        return SnackPixel();
+                      } else if (foodPosition == index) {
+                        return FoodPixel();
+                      } else {
+                        return BlankPixel();
+                      }
+                    },
+                  ),
+                ),
               ),
-            ),
+
+              // play button
+              Expanded(
+                child: Center(
+                  child: MaterialButton(
+                    onPressed: gameHasStarted ? () {} : gameStart,
+                    color: gameHasStarted ? Colors.grey : Colors.tealAccent,
+                    child: Text('Play'),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
